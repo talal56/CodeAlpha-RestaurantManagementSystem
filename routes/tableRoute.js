@@ -2,10 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Table = require('../models/Table')
 
-// ============================================
-// ROUTE 1: GET /table
-// Purpose: list all tables
-// ============================================
+
 router.get('/table', async (req, res) => {
     try {
         const tables = await Table.find({});
@@ -16,10 +13,7 @@ router.get('/table', async (req, res) => {
     }
 })
 
-// ============================================
-// ROUTE 2: POST /table
-// Purpose: create a new table
-// ============================================
+
 router.post('/table', async (req, res) => {
     const { tableNo, capacity, status } = req.body;
     if (!tableNo || !capacity) {
@@ -36,10 +30,7 @@ router.post('/table', async (req, res) => {
     }
 })
 
-// ============================================
-// ROUTE 3: GET /table/:id
-// Purpose: get one specific table by its ID
-// ============================================
+
 router.get('/table/:id', async (req, res) => {
     try {
         const table = await Table.findById(req.params.id);
@@ -55,10 +46,7 @@ router.get('/table/:id', async (req, res) => {
     }
 })
 
-// ============================================
-// ROUTE 4: PUT /table/:id
-// Purpose: update a table (e.g. change its status to "Occupied")
-// ============================================
+
 router.put('/table/:id', async (req, res) => {
     try {
         const updatedTable = await Table.findByIdAndUpdate(
@@ -78,10 +66,7 @@ router.put('/table/:id', async (req, res) => {
     }
 })
 
-// ============================================
-// ROUTE 5: DELETE /table/:id
-// Purpose: remove a table
-// ============================================
+
 router.delete('/table/:id', async (req, res) => {
     try {
         const table = await Table.findByIdAndDelete(req.params.id)
