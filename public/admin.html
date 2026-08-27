@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Savory — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <h1 class="logo">Savory <span>Admin</span></h1>
+      <a href="/" class="btn btn-ghost">Back to site</a>
+    </div>
+  </header>
+
+  <!-- LOGIN GATE -->
+  <div id="loginGate" class="login-gate">
+    <div class="login-box">
+      <h2 class="modal-title">Admin Login</h2>
+      <form id="loginForm">
+        <label for="adminPassword">Admin password</label>
+        <input type="password" id="adminPassword" required />
+        <button type="submit" class="btn btn-primary btn-full">Log in</button>
+      </form>
+      <p id="loginError" class="error-msg hidden"></p>
+    </div>
+  </div>
+
+  <!-- ADMIN CONTENT (hidden until logged in) -->
+  <main id="adminContent" class="section hidden">
+
+    <div class="admin-panel">
+      <h3 class="menu-name" style="margin-bottom:16px;">Add Menu Item</h3>
+      <form id="menuForm">
+        <label>Name</label>
+        <input type="text" id="mName" required />
+        <label>Category</label>
+        <select id="mCategory">
+          <option value="Fast Food">Fast Food</option>
+          <option value="Desserts">Desserts</option>
+          <option value="Drinks">Drinks</option>
+        </select>
+        <label>Price</label>
+        <input type="number" id="mPrice" step="0.01" min="0" required />
+        <button type="submit" class="btn btn-primary btn-full">Add Item</button>
+      </form>
+      <p id="menuMsg" class="hidden"></p>
+      <div id="menuList" class="admin-list" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="admin-panel">
+      <h3 class="menu-name" style="margin-bottom:16px;">Add Table</h3>
+      <form id="tableForm">
+        <label>Table number</label>
+        <input type="number" id="tNo" required />
+        <label>Capacity</label>
+        <input type="number" id="tCap" min="1" required />
+        <button type="submit" class="btn btn-primary btn-full">Add Table</button>
+      </form>
+      <p id="tableMsg" class="hidden"></p>
+      <div id="tableList" class="admin-list" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="admin-panel">
+      <h3 class="menu-name" style="margin-bottom:16px;">Add Inventory Item</h3>
+      <form id="invForm">
+        <label>Item name</label>
+        <input type="text" id="iName" required />
+        <label>Quantity</label>
+        <input type="number" id="iQty" min="0" required />
+        <label>Unit</label>
+        <select id="iUnit">
+          <option value="kgs">kgs</option>
+          <option value="litres">litres</option>
+          <option value="grams">grams</option>
+          <option value="pieces">pieces</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-full">Add Inventory</button>
+      </form>
+      <p id="invMsg" class="hidden"></p>
+      <div id="invList" class="admin-list" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="admin-panel">
+      <h3 class="menu-name" style="margin-bottom:16px;">Orders</h3>
+      <div id="ordersList" class="admin-list"></div>
+    </div>
+
+  </main>
+
+  <script>
+    const loginGate = document.getElementById('loginGate');
+    const adminContent = document.getElementById('adminContent');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+
+    // ===== AUTH HELPERS =====
+    // Every admin request needs this header attached — this function
+    // builds it using whatever key was saved after a successful login
+    function authHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'x-admin-key': sessionStorage.getItem('adminKey'),
+      };
+    }
+
+    // Check if we already have a saved key from earlier in this browser session
+    if (sessionStorage.getItem('adminKey')) {
+      showAdminPanel();
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
+
+      const password = document.getElementById('adminPassword').value;
+
+      // We verify the password by trying a real admin-only request.
+      // If the backend accepts it, the password is correct.
+      try {
+        const res = await fetch('/api/table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': password },
+          body: JSON.stringify({}), // intentionally invalid body — we only care about the auth check
+        });
+
+        // 401 means the password itself was wrong
+        if (res.status === 401) {
+          throw new Error('Incorrect password');
+        }
+
+        // Any other response (even a validation error) means the password WAS accepted
+        sessionStorage.setItem('adminKey', password);
+        showAdminPanel();
+
+      } catch (err) {
+        loginError.textContent = err.message;
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    function showAdminPanel() {
+      loginGate.classList.add('hidden');
+      adminContent.classList.remove('hidden');
+      loadMenuList();
+      loadTableList();
+      loadInvList();
+      loadOrders();
+    }
+
+    // ===== MENU MANAGEMENT =====
+    document.getElementById('menuForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/menu', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            name: document.getElementById('mName').value,
+            category: document.getElementById('mCategory').value,
+            price: Number(document.getElementById('mPrice').value),
+            ingredients: [],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById('menuForm').reset();
+        loadMenuList();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function loadMenuList() {
+      const res = await fetch('/api/menu');
+      const items = await res.json();
+      const list = document.getElementById('menuList');
+      list.innerHTML = items.map((item) => `
+        <div class="admin-item">
+          <div>
+            <p class="admin-item-title">${item.name}</p>
+            <p class="admin-item-sub">${item.category} · $${item.price.toFixed(2)}</p>
+          </div>
+          <button class="btn btn-danger" onclick="deleteItem('menu', '${item._id}')">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    // ===== TABLE MANAGEMENT =====
+    document.getElementById('tableForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/table', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            tableNo: Number(document.getElementById('tNo').value),
+            capacity: Number(document.getElementById('tCap').value),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById('tableForm').reset();
+        loadTableList();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function loadTableList() {
+      const res = await fetch('/api/table');
+      const items = await res.json();
+      const list = document.getElementById('tableList');
+      list.innerHTML = items.map((t) => `
+        <div class="admin-item">
+          <div>
+            <p class="admin-item-title">Table ${t.tableNo}</p>
+            <p class="admin-item-sub">Seats ${t.capacity} · ${t.status}</p>
+          </div>
+          <button class="btn btn-danger" onclick="deleteItem('table', '${t._id}')">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    // ===== INVENTORY MANAGEMENT =====
+    document.getElementById('invForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/inventoryItem', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            item: document.getElementById('iName').value,
+            quantity: Number(document.getElementById('iQty').value),
+            unit: document.getElementById('iUnit').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById('invForm').reset();
+        loadInvList();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function loadInvList() {
+      const res = await fetch('/api/inventoryItem');
+      const items = await res.json();
+      const list = document.getElementById('invList');
+      list.innerHTML = items.map((i) => `
+        <div class="admin-item">
+          <div>
+            <p class="admin-item-title">${i.item}</p>
+            <p class="admin-item-sub">${i.quantity} ${i.unit}</p>
+          </div>
+          <button class="btn btn-danger" onclick="deleteItem('inventoryItem', '${i._id}')">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    // ===== ORDERS (view only) =====
+    async function loadOrders() {
+      const res = await fetch('/api/orders', { headers: authHeaders() });
+      const orders = await res.json();
+      const list = document.getElementById('ordersList');
+
+      if (orders.length === 0) {
+        list.innerHTML = '<p class="status-msg">No orders yet.</p>';
+        return;
+      }
+
+      list.innerHTML = orders.map((o) => `
+        <div class="admin-item">
+          <div>
+            <p class="admin-item-title">Order ${o._id.slice(-6)}</p>
+            <p class="admin-item-sub">$${o.totalPrice.toFixed(2)} · ${o.status}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ===== SHARED DELETE HELPER =====
+    async function deleteItem(type, id) {
+      const endpoint = type === 'inventoryItem' ? 'inventoryItem' : type;
+      await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE', headers: authHeaders() });
+
+      if (type === 'menu') loadMenuList();
+      if (type === 'table') loadTableList();
+      if (type === 'inventoryItem') loadInvList();
+    }
+  </script>
+
+</body>
+</html>

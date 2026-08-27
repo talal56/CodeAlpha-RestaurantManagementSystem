@@ -1,6 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const Reservation = require('../models/Reservation')
+const Table = require('../models/Table')
+const requireAdmin = require('../middleware/authMiddleware');
+
 
 router.get('/reservation', async (req, res) => {
     try {
@@ -14,13 +17,34 @@ router.get('/reservation', async (req, res) => {
 
 router.post('/reservation', async (req, res) => {
     const { tableId, customerName, dateTime, partySize } = req.body;
+
     if (!tableId || !customerName || !dateTime || !partySize) {
         return res.status(400).json({ error: 'Table, customer name, date/time, and party size are required' })
     }
+
     try {
+        // Step 1: make sure the table actually exists
+        const table = await Table.findById(tableId);
+        if (!table) {
+            return res.status(404).json({ error: 'Table not found' });
+        }
+
+        // Step 2: check party size against the table's capacity
+        if (partySize > table.capacity) {
+            return res.status(400).json({ error: `This table only seats ${table.capacity} people` });
+        }
+
+        // Step 3: check if this table is already reserved at this exact date/time
+        const conflict = await Reservation.findOne({ tableId, dateTime });
+        if (conflict) {
+            return res.status(400).json({ error: 'This table is already reserved at that time' });
+        }
+
+        // Step 4: no conflicts — create the reservation
         const newReservation = new Reservation({ tableId, customerName, dateTime, partySize })
         await newReservation.save()
         res.status(201).json(newReservation)
+
     } catch (err) {
         console.error(err)
         return res.status(500).json({ error: 'System error, please try again' })

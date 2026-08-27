@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const Table = require('../models/Table')
+const Table = require('../models/Table');
+const requireAdmin = require('../middleware/authMiddleware');
 
 
 router.get('/table', async (req, res) => {
@@ -14,7 +15,7 @@ router.get('/table', async (req, res) => {
 })
 
 
-router.post('/table', async (req, res) => {
+router.post('/table', requireAdmin,async (req, res) => {
     const { tableNo, capacity, status } = req.body;
     if (!tableNo || !capacity) {
         return res.status(400).json({ error: 'Table number and capacity are required' });
@@ -47,7 +48,7 @@ router.get('/table/:id', async (req, res) => {
 })
 
 
-router.put('/table/:id', async (req, res) => {
+router.put('/table/:id',requireAdmin, async (req, res) => {
     try {
         const updatedTable = await Table.findByIdAndUpdate(
             req.params.id,
@@ -67,7 +68,7 @@ router.put('/table/:id', async (req, res) => {
 })
 
 
-router.delete('/table/:id', async (req, res) => {
+router.delete('/table/:id',requireAdmin ,async (req, res) => {
     try {
         const table = await Table.findByIdAndDelete(req.params.id)
         if (!table) {

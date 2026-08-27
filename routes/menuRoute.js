@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const MenuItem = require('../models/MenuItem');
+const requireAdmin = require('../middleware/authMiddleware');
 
-
-router.post('/menu', async (req, res) => {
+router.post('/menu',requireAdmin, async (req, res) => {
   const { name, category, price, ingredients } = req.body;
 
   if (!name || !category || !price) {
@@ -48,7 +48,7 @@ router.get('/menu/:id', async (req, res) => {
 });
 
 
-router.put('/menu/:id', async (req, res) => {
+router.put('/menu/:id',requireAdmin, async (req, res) => {
   try {
     const updatedItem = await MenuItem.findByIdAndUpdate(
       req.params.id,
@@ -68,7 +68,7 @@ router.put('/menu/:id', async (req, res) => {
 });
 
 
-router.delete('/menu/:id', async (req, res) => {
+router.delete('/menu/:id',requireAdmin, async (req, res) => {
   try {
     const deleted = await MenuItem.findByIdAndDelete(req.params.id);
 

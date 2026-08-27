@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Savory — Restaurant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <h1 class="logo">Savory<span>.</span></h1>
+      <a href="/admin.html" class="btn btn-ghost">Admin</a>
+    </div>
+  </header>
+
+  <!-- MENU + CART -->
+  <section class="section">
+    <h2 class="section-title">Menu</h2>
+    <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+      <div id="menuGrid" class="menu-grid">
+        <p class="status-msg">Loading menu...</p>
+      </div>
+
+      <div class="cart-panel">
+        <h3 class="menu-name" style="margin-bottom:10px;">Your Order</h3>
+
+        <label for="tableSelect">Table</label>
+        <select id="tableSelect"></select>
+
+        <div id="cartItems" style="margin-top:14px;">
+          <p class="status-msg" style="padding:10px 0;">No items yet</p>
+        </div>
+
+        <div class="cart-total">
+          <span>Total</span>
+          <span id="cartTotal">$0.00</span>
+        </div>
+
+        <button id="placeOrderBtn" class="btn btn-primary btn-full">Place Order</button>
+        <p id="orderMsg" class="hidden"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABLES / RESERVATION -->
+  <section class="section">
+    <h2 class="section-title">Reserve a Table</h2>
+    <div id="tablesGrid" class="tables-grid">
+      <p class="status-msg">Loading tables...</p>
+    </div>
+  </section>
+
+  <!-- RESERVATION MODAL -->
+  <div id="reserveModal" class="modal-overlay hidden">
+    <div class="modal">
+      <button id="closeReserveBtn" class="modal-close">&times;</button>
+      <h3 class="modal-title">Reserve Table <span id="reserveTableNo"></span></h3>
+      <form id="reserveForm">
+        <label for="resName">Your name</label>
+        <input type="text" id="resName" required />
+        <label for="resDateTime">Date & time</label>
+        <input type="datetime-local" id="resDateTime" required />
+        <label for="resParty">Party size</label>
+        <input type="number" id="resParty" min="1" required />
+        <button type="submit" class="btn btn-primary btn-full">Confirm Reservation</button>
+      </form>
+      <p id="reserveError" class="error-msg hidden"></p>
+    </div>
+  </div>
+
+  <script>
+    let menuItems = [];
+    let tables = [];
+    let cart = {}; // { menuItemId: quantity }
+    let currentReserveTable = null;
+
+    const menuGrid = document.getElementById('menuGrid');
+    const tableSelect = document.getElementById('tableSelect');
+    const cartItemsEl = document.getElementById('cartItems');
+    const cartTotalEl = document.getElementById('cartTotal');
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    const orderMsg = document.getElementById('orderMsg');
+    const tablesGrid = document.getElementById('tablesGrid');
+
+    // ===== LOAD MENU =====
+    async function loadMenu() {
+      try {
+        const res = await fetch('/api/menu');
+        menuItems = await res.json();
+
+        if (menuItems.length === 0) {
+          menuGrid.innerHTML = '<p class="status-msg">No menu items yet.</p>';
+          return;
+        }
+
+        menuGrid.innerHTML = '';
+        menuItems.forEach((item) => {
+          const card = document.createElement('div');
+          card.className = 'menu-card';
+          card.innerHTML = `
+            <div class="menu-card-top">
+              <div>
+                <p class="menu-category">${item.category}</p>
+                <p class="menu-name">${item.name}</p>
+              </div>
+              <p class="menu-price">$${item.price.toFixed(2)}</p>
+            </div>
+            <div class="qty-control">
+              <button class="minus-btn">−</button>
+              <span class="qty-value" id="qty-${item._id}">0</span>
+              <button class="plus-btn">+</button>
+            </div>
+          `;
+          card.querySelector('.plus-btn').addEventListener('click', () => changeQty(item._id, 1));
+          card.querySelector('.minus-btn').addEventListener('click', () => changeQty(item._id, -1));
+          menuGrid.appendChild(card);
+        });
+      } catch (err) {
+        menuGrid.innerHTML = '<p class="status-msg">Failed to load menu.</p>';
+      }
+    }
+
+    function changeQty(itemId, delta) {
+      const current = cart[itemId] || 0;
+      const updated = Math.max(0, current + delta);
+      cart[itemId] = updated;
+
+      document.getElementById(`qty-${itemId}`).textContent = updated;
+      renderCart();
+    }
+
+    function renderCart() {
+      const entries = Object.entries(cart).filter(([id, qty]) => qty > 0);
+
+      if (entries.length === 0) {
+        cartItemsEl.innerHTML = '<p class="status-msg" style="padding:10px 0;">No items yet</p>';
+        cartTotalEl.textContent = '$0.00';
+        return;
+      }
+
+      let total = 0;
+      cartItemsEl.innerHTML = entries.map(([id, qty]) => {
+        const item = menuItems.find((m) => m._id === id);
+        const lineTotal = item.price * qty;
+        total += lineTotal;
+        return `<div class="cart-item"><span>${item.name} × ${qty}</span><span>$${lineTotal.toFixed(2)}</span></div>`;
+      }).join('');
+
+      cartTotalEl.textContent = `$${total.toFixed(2)}`;
+    }
+
+    // ===== LOAD TABLES (for both order dropdown and reservation grid) =====
+    async function loadTables() {
+      try {
+        const res = await fetch('/api/table');
+        tables = await res.json();
+
+        tableSelect.innerHTML = tables.map((t) =>
+          `<option value="${t._id}">Table ${t.tableNo} (seats ${t.capacity})</option>`
+        ).join('');
+
+        tablesGrid.innerHTML = tables.map((t) => `
+          <div class="table-card">
+            <p class="menu-name">Table ${t.tableNo}</p>
+            <p class="status-msg" style="padding:4px 0;">Seats ${t.capacity}</p>
+            <span class="table-status ${t.status === 'Free' ? 'status-free' : 'status-occupied'}">${t.status}</span>
+            ${t.status === 'Free' ? `<button class="btn btn-primary btn-full reserve-btn" data-id="${t._id}" data-no="${t.tableNo}">Reserve</button>` : ''}
+          </div>
+        `).join('');
+
+        document.querySelectorAll('.reserve-btn').forEach((btn) => {
+          btn.addEventListener('click', () => openReserveModal(btn.dataset.id, btn.dataset.no));
+        });
+      } catch (err) {
+        tablesGrid.innerHTML = '<p class="status-msg">Failed to load tables.</p>';
+      }
+    }
+
+    // ===== PLACE ORDER =====
+    placeOrderBtn.addEventListener('click', async () => {
+      const items = Object.entries(cart)
+        .filter(([id, qty]) => qty > 0)
+        .map(([menuItemId, quantity]) => ({ menuItemId, quantity }));
+
+      if (items.length === 0) {
+        showOrderMsg('Add at least one item first.', 'error-msg');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tableId: tableSelect.value, items }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+        showOrderMsg('Order placed successfully!', 'success-msg');
+        cart = {};
+        renderCart();
+        document.querySelectorAll('.qty-value').forEach((el) => (el.textContent = '0'));
+
+      } catch (err) {
+        showOrderMsg(err.message, 'error-msg');
+      }
+    });
+
+    function showOrderMsg(text, className) {
+      orderMsg.textContent = text;
+      orderMsg.className = className;
+      orderMsg.classList.remove('hidden');
+      setTimeout(() => orderMsg.classList.add('hidden'), 4000);
+    }
+
+    // ===== RESERVATION MODAL =====
+    const reserveModal = document.getElementById('reserveModal');
+    const reserveTableNo = document.getElementById('reserveTableNo');
+    const reserveForm = document.getElementById('reserveForm');
+    const reserveError = document.getElementById('reserveError');
+
+    function openReserveModal(tableId, tableNo) {
+      currentReserveTable = tableId;
+      reserveTableNo.textContent = tableNo;
+      reserveError.classList.add('hidden');
+      reserveForm.reset();
+      reserveModal.classList.remove('hidden');
+    }
+
+    document.getElementById('closeReserveBtn').addEventListener('click', () => {
+      reserveModal.classList.add('hidden');
+    });
+
+    reserveForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      reserveError.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/reservation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableId: currentReserveTable,
+            customerName: document.getElementById('resName').value,
+            dateTime: document.getElementById('resDateTime').value,
+            partySize: Number(document.getElementById('resParty').value),
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+        reserveModal.classList.add('hidden');
+        loadTables();
+
+      } catch (err) {
+        reserveError.textContent = err.message;
+        reserveError.classList.remove('hidden');
+      }
+    });
+
+    loadMenu();
+    loadTables();
+  </script>
+
+</body>
+</html>
