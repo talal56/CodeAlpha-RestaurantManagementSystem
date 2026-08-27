@@ -17,7 +17,7 @@
     </div>
   </header>
 
-  <!-- MENU + CART -->
+  
   <section class="section">
     <h2 class="section-title">Menu</h2>
     <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
@@ -46,7 +46,7 @@
     </div>
   </section>
 
-  <!-- TABLES / RESERVATION -->
+ 
   <section class="section">
     <h2 class="section-title">Reserve a Table</h2>
     <div id="tablesGrid" class="tables-grid">
@@ -54,7 +54,7 @@
     </div>
   </section>
 
-  <!-- RESERVATION MODAL -->
+
   <div id="reserveModal" class="modal-overlay hidden">
     <div class="modal">
       <button id="closeReserveBtn" class="modal-close">&times;</button>
@@ -75,7 +75,7 @@
   <script>
     let menuItems = [];
     let tables = [];
-    let cart = {}; // { menuItemId: quantity }
+    let cart = {}; 
     let currentReserveTable = null;
 
     const menuGrid = document.getElementById('menuGrid');
@@ -86,7 +86,7 @@
     const orderMsg = document.getElementById('orderMsg');
     const tablesGrid = document.getElementById('tablesGrid');
 
-    // ===== LOAD MENU =====
+    
     async function loadMenu() {
       try {
         const res = await fetch('/api/menu');
@@ -153,7 +153,7 @@
       cartTotalEl.textContent = `$${total.toFixed(2)}`;
     }
 
-    // ===== LOAD TABLES (for both order dropdown and reservation grid) =====
+    
     async function loadTables() {
       try {
         const res = await fetch('/api/table');
@@ -218,7 +218,7 @@
       setTimeout(() => orderMsg.classList.add('hidden'), 4000);
     }
 
-    // ===== RESERVATION MODAL =====
+    
     const reserveModal = document.getElementById('reserveModal');
     const reserveTableNo = document.getElementById('reserveTableNo');
     const reserveForm = document.getElementById('reserveForm');

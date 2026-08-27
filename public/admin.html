@@ -17,7 +17,7 @@
     </div>
   </header>
 
-  <!-- LOGIN GATE -->
+  
   <div id="loginGate" class="login-gate">
     <div class="login-box">
       <h2 class="modal-title">Admin Login</h2>
@@ -30,7 +30,7 @@
     </div>
   </div>
 
-  <!-- ADMIN CONTENT (hidden until logged in) -->
+  
   <main id="adminContent" class="section hidden">
 
     <div class="admin-panel">
@@ -98,9 +98,7 @@
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
 
-    // ===== AUTH HELPERS =====
-    // Every admin request needs this header attached — this function
-    // builds it using whatever key was saved after a successful login
+    
     function authHeaders() {
       return {
         'Content-Type': 'application/json',
@@ -108,7 +106,7 @@
       };
     }
 
-    // Check if we already have a saved key from earlier in this browser session
+    
     if (sessionStorage.getItem('adminKey')) {
       showAdminPanel();
     }
@@ -119,21 +117,20 @@
 
       const password = document.getElementById('adminPassword').value;
 
-      // We verify the password by trying a real admin-only request.
-      // If the backend accepts it, the password is correct.
+      
       try {
         const res = await fetch('/api/table', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-key': password },
-          body: JSON.stringify({}), // intentionally invalid body — we only care about the auth check
+          body: JSON.stringify({}), 
         });
 
-        // 401 means the password itself was wrong
+        
         if (res.status === 401) {
           throw new Error('Incorrect password');
         }
 
-        // Any other response (even a validation error) means the password WAS accepted
+       
         sessionStorage.setItem('adminKey', password);
         showAdminPanel();
 
@@ -152,7 +149,7 @@
       loadOrders();
     }
 
-    // ===== MENU MANAGEMENT =====
+    
     document.getElementById('menuForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -190,7 +187,7 @@
       `).join('');
     }
 
-    // ===== TABLE MANAGEMENT =====
+    
     document.getElementById('tableForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -226,7 +223,7 @@
       `).join('');
     }
 
-    // ===== INVENTORY MANAGEMENT =====
+    
     document.getElementById('invForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -263,7 +260,7 @@
       `).join('');
     }
 
-    // ===== ORDERS (view only) =====
+  
     async function loadOrders() {
       const res = await fetch('/api/orders', { headers: authHeaders() });
       const orders = await res.json();
@@ -284,7 +281,7 @@
       `).join('');
     }
 
-    // ===== SHARED DELETE HELPER =====
+
     async function deleteItem(type, id) {
       const endpoint = type === 'inventoryItem' ? 'inventoryItem' : type;
       await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE', headers: authHeaders() });

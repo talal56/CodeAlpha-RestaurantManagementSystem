@@ -52,8 +52,8 @@ router.put('/menu/:id',requireAdmin, async (req, res) => {
   try {
     const updatedItem = await MenuItem.findByIdAndUpdate(
       req.params.id,
-      req.body,       // whatever fields the frontend sends get updated
-      { new: true }   // return the UPDATED document, not the old one
+      req.body,      
+      { new: true }   
     );
 
     if (!updatedItem) {
